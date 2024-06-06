@@ -4,9 +4,17 @@ import re
 import os
 import json
 import pandas as pd
+import shutil
+import zipfile
 from PIL import Image
 from errorhandling.errorHome import invalid_url_message
 from scrap_Data.primarydata import PrimaryData
+
+def zip_data_folder(folder_path, zip_name):
+    shutil.make_archive(zip_name, 'zip', folder_path)
+
+def delete_folder(folder_path):
+    shutil.rmtree(folder_path)
 
 def main():
     st.title("YouTube Data Extraction Project")
@@ -70,9 +78,22 @@ def main():
                 playlist_data = json.load(json_file)
                 sample_data = playlist_data[:10]
                 df = pd.DataFrame(sample_data)
-                st.dataframe(df)
+                st.dataframe(df)  # Display DataFrame directly without width specification
         else:
             st.write("JSON file does not exist.")
+
+        # Add download button
+        if st.button("Download Data"):
+            # Zip the data folder
+            zip_data_folder('data', 'data')
+            
+            # Provide the download link
+            with open('data.zip', 'rb') as f:
+                st.download_button('Download ZIP', f, file_name='data.zip')
+            
+            # Delete the data folder and zip file after download
+            delete_folder('data')
+            os.remove('data.zip')
 
     elif selected == "Image Processing":
         st.write(f"Hello, you are in {selected}!")

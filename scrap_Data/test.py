@@ -21,11 +21,12 @@ class PrimaryData:
             video_id = video.video_id
             video_data = {
                 'title': video.title,
+                'tags': video.keywords,
                 'views': video.views,
-               
+                'url': video.watch_url,
                 'category': self.category(video.watch_url)  # Get category
             }
-            self.download_thumbnail(video_id)
+            self.download_thumbnail(video.thumbnail_url, video_id)
             video_data['thumbnail_path'] = os.path.join('data', 'images', f'{video_id}.jpg')
             self.playlist_data.append(video_data)
         
