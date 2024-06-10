@@ -1,106 +1,82 @@
 import streamlit as st
-from streamlit_option_menu import option_menu
 import re
 import os
-import json
-import pandas as pd
 import shutil
-import zipfile
-from PIL import Image
-from errorhandling.errorHome import invalid_url_message
-from scrap_Data.primarydata import PrimaryData
+import json
+from streamlit_option_menu import option_menu
+from primarydata import process_url
+from viewdatabase import view_database
+from mergedData import merge_data
+from download import manage_downloads, clean_recycle_bin
 
-def zip_data_folder(folder_path, zip_name):
-    shutil.make_archive(zip_name, 'zip', folder_path)
+# Function to validate YouTube playlist URL
+def is_valid_youtube_playlist_url(url):
+    playlist_pattern = re.compile(r'^https:\/\/www\.youtube\.com\/playlist\?list=[A-Za-z0-9_-]+$')
+    return bool(playlist_pattern.match(url))
 
-def delete_folder(folder_path):
-    shutil.rmtree(folder_path)
-
+# Streamlit App
 def main():
-    st.title("YouTube Data Extraction Project")
+    # Apply some CSS for custom styling
+    st.markdown("""
+        <style>
+        .sidebar .sidebar-content {
+            background-color: #f0f2f6;
+        }
+        .sidebar .sidebar-content .element-container {
+            padding: 0.5rem;
+        }
+        .reportview-container .markdown-text-container {
+            text-align: center;
+        }
+        .reportview-container .element-container .stButton button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            transition-duration: 0.4s;
+            cursor: pointer;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-    # Create a sidebar with navigation options
+    # Sidebar Navigation
     with st.sidebar:
-        selected = option_menu(
-            menu_title="Main Menu",  # required
-            options=["Home", "Image Processing", "Text Analysis", "Final Data"],  # required
-            icons=["house", "image", "file-text", "database"],  # optional
-            menu_icon="cast",  # optional
-            default_index=0,  # optional
-        )
+        choice = option_menu("Navigation", ["Home", "View Database", "Merge Data", "Download Database"],
+                             icons=["house", "table", "upload", "download"],
+                             menu_icon="cast", default_index=0)
 
-    # Display the selected page
-    if selected == "Home":
-        st.header("Welcome to Data Collection Software")
-        st.subheader("Please paste a YouTube playlist URL to extract the data (Note: playlist must be public)")
+    if choice == "Home":
+        st.markdown("<h1 style='text-align: center; color: #4CAF50;'>Welcome to YouTube Playlist Validator</h1>", unsafe_allow_html=True)
+        st.write("""
+        **Note:** Please ensure the URL is a public YouTube playlist.
+        """)
 
-        # Input box for the YouTube playlist URL
-        playlist_url = st.text_input("YouTube Playlist URL")
+        # URL input
+        url = st.text_input("Enter YouTube Playlist URL")
 
-        # Submit button
-        if st.button("Submit"):
-            # Validate the URL
-            if playlist_url:
-                # Regular expression to check if the URL is a YouTube playlist URL
-                pattern = r"(https?://)?(www\.)?(youtube\.com|youtu\.?be)/.*(list=)"
-                if re.match(pattern, playlist_url):
-                    # Handle the URL and extract text data
-                    primary_data = PrimaryData(playlist_url)
-                    primary_data.text_data()
-                    st.write(f"Playlist URL entered: {playlist_url}")
-                    st.success("Data extracted and saved successfully.")
-                else:
-                    st.error(invalid_url_message())
+        if url:
+            if is_valid_youtube_playlist_url(url):
+                st.success("The URL is a valid YouTube playlist URL!")
+                if st.button("Start Extracting"):
+                    clean_recycle_bin()
+                    process_url(url)
+                    st.info(f"Your URL is: {url}. Metadata is being processed.")
             else:
-                st.error("Please enter a YouTube playlist URL.")
+                st.error("Invalid URL. Please enter a valid YouTube playlist URL.")
 
-        # Display 6 sample images from the data/images folder in a tabular form
-        st.subheader("Sample Thumbnails")
-        image_folder = os.path.join('data', 'images')
-        if os.path.exists(image_folder):
-            image_files = [os.path.join(image_folder, img) for img in os.listdir(image_folder) if img.endswith(('jpg', 'jpeg', 'png'))]
-            if image_files:
-                sample_images = image_files[:6]
-                cols = st.columns(3)  # Creating 3 columns for the images
-                for idx, img_path in enumerate(sample_images):
-                    img = Image.open(img_path)
-                    cols[idx % 3].image(img, caption=os.path.basename(img_path), use_column_width=True)
-            else:
-                st.write("No images found in the images folder.")
-        else:
-            st.write("Images folder does not exist.")
+    elif choice == "View Database":
+        view_database()
 
-        # Display 10 sample JSON data entries from the data/playlist_data.json file using pandas
-        st.subheader("Sample JSON Data")
-        json_file_path = os.path.join('data', 'playlist_data.json')
-        if os.path.exists(json_file_path):
-            with open(json_file_path, 'r') as json_file:
-                playlist_data = json.load(json_file)
-                sample_data = playlist_data[:10]
-                df = pd.DataFrame(sample_data)
-                st.dataframe(df)  # Display DataFrame directly without width specification
-        else:
-            st.write("JSON file does not exist.")
+    elif choice == "Merge Data":
+        merge_data()
 
-        # Add download button
-        if st.button("Download Data"):
-            # Zip the data folder
-            zip_data_folder('data', 'data')
-            
-            # Provide the download link
-            with open('data.zip', 'rb') as f:
-                st.download_button('Download ZIP', f, file_name='data.zip')
-            
-            # Delete the data folder and zip file after download
-            delete_folder('data')
-            os.remove('data.zip')
-
-    elif selected == "Image Processing":
-        st.write(f"Hello, you are in {selected}!")
-    elif selected == "Text Analysis":
-        st.write(f"Hello, you are in {selected}!")
-    elif selected == "Final Data":
-        st.write(f"Hello, you are in {selected}!")
+    elif choice == "Download Database":
+        manage_downloads()
 
 if __name__ == "__main__":
     main()
